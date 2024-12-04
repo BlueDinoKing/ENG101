@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Graph</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    <style type="text/css">
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+        }
+        #mynetwork {
+            width: 100%;
+            height: 90vh;
+            border: 1px solid #333;
+            background-color: #1e1e1e;
+        }
+        #popup {
+            display: none;
+            position: absolute;
+            background-color: #333;
+            border: 1px solid #555;
+            padding: 10px;
+            z-index: 10;
+            color: #e0e0e0;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .vis-network {
+            background-color: #1e1e1e;
+        }
+    </style>
+</head>
+<body>
+    <label>
+        <input type="checkbox" id="randomLinks" onclick="reloadGraph()"> Generate Random Links
+    </label>
+    <div id="mynetwork"></div>
+    <div id="popup"></div>
+
+    <script type="text/javascript">
+        // Fetch the assignments.json file
+        fetch('assignments.json')
+            .then(response => response.json())
+            .then(data => {
+                // Create nodes and edges from the data
+                const nodes = new vis.DataSet();
+                const edges = new vis.DataSet();
+
+                // Define chapters
+                const chapters = [
+                    "Listening",
+                    "Thinking Rhetorically",
+                    "Engaging Respectfully with Others",
+                    "Developing Academic Habits of Mind",
+                    "Writing Processes",
+                    "Reading to Understand, Engage, & Respond",
+                    "Recognizing Facts, Misinformation, and Lies",
+                    "Arguing",
+                    "Analyzing"
+                ];
+                const colors = ['#ff5400', '#ff8e00', '#ffd200', '#81e650', '#00d267', '#00c0ff', '#8b48fe', '#ca41fc', '#ff46fb'];
+                
+                // Add chapter nodes with fixed positions
+                chapters.forEach((chapter, index) => {
+                    nodes.add({ 
+                        id: index, 
+                        label: `Chapter ${index + 1}: ${chapter}`,
+                        color: {
+                            background: colors[index],
+                            border: '#333',
+                            highlight: {
+                                background: colors[index],
+                                border: '#fff'
+                            }
+                        },
+                        font: { size: 32, color: '#e0e0e0' },
+                        shape: 'box',
+                        shadow: {
+                            enabled: true,
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            size: 10,
+                            x: 0,
+                            y: 0
+                        },
+                        title: `Chapter ${index + 1}: ${chapter}`,
+                        date: 'N/A',
+                        notes: 'N/A'
+                    });
+                // Add links between chapters 1 to 2, 2 to 3, etc.
+                for (let i = 0; i < chapters.length - 1; i++) {
+                    edges.add({ 
+                        from: i, 
+                        to: i + 1,
+                        color: { color: colors[i] }
+                    });
+                }
+                });
+
+                function mixColors(color1, color2, ratio) {
+                    // Ensure the ratio is between 0 and 1
+                    ratio = Math.max(0, Math.min(1, ratio));
+
+                    // Parse the hex codes into RGB components
+                    const hexToRgb = (hex) => {
+                        const bigint = parseInt(hex.slice(1), 16);
+                        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+                    };
+
+                    const rgbToHex = (r, g, b) =>
+                        `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()}`;
+
+                    const rgb1 = hexToRgb(color1);
+                    const rgb2 = hexToRgb(color2);
+
+                    // Blend the colors
+                    const mixedRgb = rgb1.map((component, i) =>
+                        Math.round(component * (1 - ratio) + rgb2[i] * ratio)
+                    );
+
+                    // Convert back to hex
+                    return rgbToHex(mixedRgb[0], mixedRgb[1], mixedRgb[2]);
+                }
+
+                // Add assignment nodes and link to chapters
+                const randomLinks = document.getElementById('randomLinks').checked;
+                data.forEach((assignment, index) => {
+                    if (assignment.Handout) {
+                        return;
+                    }
+                    const assignmentId = chapters.length + index;
+                    let assignmentColor = '#ffffff'; // Default color
+
+                    if (randomLinks) {
+                        // Generate random links
+                        const randomChapterCount = Math.floor(Math.random() * 3) + 1;
+                        const selectedChapters = new Set();
+                        while (selectedChapters.size < randomChapterCount) {
+                            selectedChapters.add(Math.floor(Math.random() * chapters.length));
+                        }
+                        selectedChapters.forEach(chapterIndex => {
+                            edges.add({ 
+                                from: chapterIndex, 
+                                to: assignmentId,
+                                color: { color: colors[chapterIndex] }
+                            });
+                        });
+
+                        // Mix colors of selected chapters
+                        const selectedColors = Array.from(selectedChapters).map(index => colors[index]);
+                        if (selectedColors.length > 1) {
+                            assignmentColor = selectedColors.reduce((acc, color) => mixColors(acc, color, 0.5));
+                        } else if (selectedColors.length === 1) {
+                            assignmentColor = selectedColors[0];
+                        }
+                    } else {
+                        // Link assignment to relevant chapters
+                        const linkedChapters = [];
+                        chapters.forEach((chapter, chapterIndex) => {
+                            const chapterKey = chapter.replace(/ /g, '');
+                            if (assignment[chapterKey]) {
+                                edges.add({ 
+                                    from: chapterIndex, 
+                                    to: assignmentId,
+                                    color: { color: colors[chapterIndex] }
+                                });
+                                linkedChapters.push(colors[chapterIndex]);
+                            }
+                        });
+
+                        // Mix colors of linked chapters
+                        if (linkedChapters.length > 1) {
+                            assignmentColor = linkedChapters.reduce((acc, color) => mixColors(acc, color, 0.5));
+                        } else if (linkedChapters.length === 1) {
+                            assignmentColor = linkedChapters[0];
+                        }
+                    }
+
+                    nodes.add({ 
+                        id: assignmentId, 
+                        label: assignment.Title, 
+                        color: {
+                            background: assignmentColor,
+                            border: '#333',
+                            highlight: {
+                                background: assignmentColor,
+                                border: '#fff'
+                            }
+                        },
+                        font: { color: '#e0e0e0' },
+                        shape: 'box',
+                        shadow: {
+                            enabled: true,
+                            color: assignmentColor,
+                            size: 10,
+                            x: 0,
+                            y: 0
+                        },
+                        title: assignment.Title, 
+                        date: assignment['Due Date'], 
+                        notes: assignment.Notes 
+                    });
+                });
+
+                // Create a network
+                const container = document.getElementById('mynetwork');
+                const networkData = {
+                    nodes: nodes,
+                    edges: edges
+                };
+                const options = {
+                    physics: {
+                        enabled: true,
+                        solver: 'forceAtlas2Based',
+                        forceAtlas2Based: {
+                            gravitationalConstant: -50,
+                            centralGravity: 0.01,
+                            springLength: 100,
+                            springConstant: 0.08
+                        },
+                        maxVelocity: 50,
+                        minVelocity: 0.1,
+                        timestep: 0.5,
+                        stabilization: { iterations: 150 }
+                    }
+                };
+                const network = new vis.Network(container, networkData, options);
+
+                // Add click event listener
+                network.on("click", function (params) {
+                    if (params.nodes.length > 0) {
+                        const nodeId = params.nodes[0];
+                        const node = nodes.get(nodeId);
+
+                        // Check if the node is an assignment node
+                        if (node.date !== 'N/A') {
+                            const popup = document.getElementById('popup');
+                            let popupContent = `<strong>${node.title}</strong>`;
+                            if (node.date !== 'N/A') {
+                                popupContent += `<br>${node.date}`;
+                            }
+                            if (node.notes !== 'N/A') {
+                                popupContent += `<br><strong>Notes:</strong> ${node.notes}`;
+                            }
+
+                            // Get connected chapters
+                            const connectedChapters = edges.get({
+                                filter: (edge) => edge.to === nodeId
+                            }).map(edge => nodes.get(edge.from).label);
+                            if (connectedChapters.length > 0) {
+                                popupContent += `<br><strong>Connected Chapters:</strong><br>${connectedChapters.join('<br>')}`;
+                            }   
+
+                            popup.innerHTML = popupContent;
+
+                            // Get the position of the node
+                            const nodePosition = network.getPositions([nodeId])[nodeId];
+                            const canvasPosition = network.canvasToDOM(nodePosition);
+
+                            // Position the popup at the top right of the node
+                            popup.style.display = 'block';
+                            popup.style.left = (canvasPosition.x + 10) + 'px';
+                            popup.style.top = (canvasPosition.y - popup.offsetHeight - 10) + 'px';
+                        } else {
+                            document.getElementById('popup').style.display = 'none';
+                        }
+                    } else {
+                        document.getElementById('popup').style.display = 'none';
+                    }
+                });
+            })
+            .catch(error => console.error('Error fetching assignments.json:', error));
+    </script>
+</body>
+</html>
