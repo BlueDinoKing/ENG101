@@ -93,11 +93,13 @@
 
                     // Add links between chapters 1 to 2, 2 to 3, etc.
                     for (let i = 0; i < chapters.length - 1; i++) {
-                        edges.add({ 
-                            from: i, 
-                            to: i + 1,
-                            color: { color: colors[i] }
-                        });
+                        for (let j = 0; j < 7; j++) {    
+                            edges.add({ 
+                                from: i, 
+                                to: i + 1,
+                                color: { color: colors[i] }
+                            });
+                        }
                     }
 
                     function mixColors(color1, color2, ratio) {
