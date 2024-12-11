@@ -26,7 +26,7 @@
         }
         #mynetwork, #mytimeline {
             width: 100%;
-            height: 80vh;
+            height: 85vh;
             border: 1px solid #333;
             background-color: #1e1e1e;
         }
@@ -43,24 +43,33 @@
         .vis-network {
             background-color: #1e1e1e;
         }
+        #adjustNodeSizeButton {
+            display: flex;
+            justify-content: center;
+            margin: 10px;
+            padding: 10px;
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div id="tabs">
+        <div class="tab" id="connectionsTab" onclick="showTab('connections')">Information</div>
         <div class="tab active" onclick="showTab('network')">Network Graph</div>
         <div class="tab" onclick="showTab('timeline')">Timeline</div>
     </div>
+    <div id="connectionsContent" style="display:none;">
+        <pre id="connectionsText"></pre>
+    </div>
     <div id="mynetwork"></div>
     <div id="mytimeline" style="display: none;"></div>
+    <button id="adjustNodeSizeButton" onclick="adjustNodeSizes()">Adjust Node Sizes to Ammount of Connections</button>
     <div id="popup"></div>
 
     <script type="text/javascript">
-        function showTab(tab) {
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('#mynetwork, #mytimeline').forEach(el => el.style.display = 'none');
-            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
-            document.getElementById(`my${tab}`).style.display = 'block';
-        }
 
         // Function to darken a color
         function darkenColor(color, amount) {
@@ -69,6 +78,20 @@
             const g = Math.max(0, ((num >> 8) & 0x00FF) - amount);
             const b = Math.max(0, (num & 0x0000FF) - amount);
             return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#mynetwork, #mytimeline, #connectionsContent').forEach(el => el.style.display = 'none');
+            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
+            
+            if (tab === 'connections') {
+                document.getElementById('connectionsContent').style.display = 'block';
+                document.getElementById('adjustNodeSizeButton').style.display = 'none';
+            } else {
+                document.getElementById(`my${tab}`).style.display = 'block';
+                document.getElementById('adjustNodeSizeButton').style.display = tab === 'network' ? 'block' : 'none';
+            }
         }
 
         // Function to get text color based on background color
@@ -90,7 +113,7 @@
                     const nodes = new vis.DataSet();
                     const edges = new vis.DataSet();
                     const items = new vis.DataSet();
-
+                    
                     // Define book structure
                     const bookStructure = {
                         sections: [
@@ -119,7 +142,7 @@
                                     "8: Arguing",
                                     "9: Analyzing",
                                     "12: Summarizing and Responding",
-                                    "13: Writing in Multiple Nodes"
+                                    "13: Writing in Multiple Modes"
                                 ],
                                 color: '#ff0000'
                             },
@@ -180,7 +203,7 @@
                             shadow: {
                                 enabled: true,
                                 color: 'rgba(255, 255, 255, 0.5)',
-                                size: 10,
+                                size: 16,
                                 x: 0,
                                 y: 0
                             },
@@ -306,7 +329,7 @@
                             },
                             title: assignment.Title,
                             date: assignment['Due Date'],
-                            notes: assignment.Notes,
+                            notes: (assignment.Title == "Digital Portfolio" ? assignment.Notes : null),
                             picture: assignment.Picture ? assignment.Picture.replace('ENG101/', '') : null
                         
                         });
@@ -317,12 +340,12 @@
                     }
 
                         // Add assignment to timeline
-                        if (assignment['Due Date'] !== '') {
+                        if (assignment['Due Date'] !== '' && assignment.Include == "TRUE") {
                             items.add({
                                 id: assignmentId,
                                 content: assignment.Title,
                                 start: assignment['Due Date'],
-                                notes: assignment.Notes,
+                                notes: (assignment.Title == "Digital Portfolio" ? assignment.Notes : null),
                                 picture: assignment.Picture ? assignment.Picture.replace('ENG101/', '') : null,
                                 style: `background-color: ${assignmentColor}; color: ${hasLinks ? '#e0e0e0' : '#000000'};`
                             });
@@ -393,9 +416,6 @@
                                 if (node.date !== 'N/A') {
                                     popupContent += `<br>${node.date}`;
                                 }
-                                if (node.notes !== 'N/A') {
-                                    popupContent += `<br><strong>Notes:</strong> ${node.notes}`;
-                                }
 
                                 if (node.picture) {
                     
@@ -451,12 +471,20 @@
                                 if (item.start !== undefined) {
                                     popupContent += `<br>${new Date(item.start).toLocaleDateString()}`;
                                 }
-                                if (item.notes !== 'N/A') {
-                                    popupContent += `<br><strong>Notes:</strong> ${item.notes}`;
-                                }
 
                                 if (item.picture) {
-                                    popupContent += `<br><img src="${item.picture}" alt="${item.content}" style="max-width: 100px; max-height: 100px;">`;
+                    
+                                    const imageContainer = document.createElement('popup');
+                                    imageContainer.style.position = 'fixed';
+                                    imageContainer.style.left = '10px';
+                                    imageContainer.style.top = '10px';
+                                    imageContainer.style.zIndex = '1000';
+                                    imageContainer.innerHTML = `<img src="${item.picture}" alt="${item.title}" style="min-height: 50%; max-height: 80%; width: 35%; max-width: 35%;">`;
+                                    imageContainer.addEventListener('click', function() {
+                                        document.body.removeChild(imageContainer);
+                                        document.getElementById('popup').style.display = 'none';
+                                    });
+                                    document.body.appendChild(imageContainer);
                                 }
 
                                 // Get connected chapters
@@ -484,6 +512,72 @@
                             document.getElementById('popup').style.display = 'none';
                         }
                     });
+                    // Function to adjust node sizes based on the number of edges connected
+                    let isAdjusted = false;
+
+                    const originalSizes = new Map();
+
+                    function adjustNodeSizes() {
+                        nodes.forEach(node => {
+                            const connectedEdges = edges.get({
+                                filter: edge => edge.from === node.id || edge.to === node.id
+                            });
+                            let newSize;
+                            if (!originalSizes.has(node.id)) {
+                                originalSizes.set(node.id, node.font.size);
+                            }
+                            if (node.id.startsWith('section-')) {
+                                newSize = isAdjusted ? originalSizes.get(node.id) : Math.min(100, 20 + connectedEdges.length * 5);
+                            } else if (node.id.startsWith('chapter-')) {
+                                newSize = isAdjusted ? originalSizes.get(node.id) : Math.min(100, 20 + connectedEdges.length * 5);
+                            } else {
+                                newSize = isAdjusted ? originalSizes.get(node.id) : Math.min(100, 20 + connectedEdges.length * 5);
+                            }
+                            nodes.update({
+                                id: node.id,
+                                font: { size: newSize }
+                            });
+                        });
+                        isAdjusted = !isAdjusted;
+                    }
+
+                    // Function to adjust chapters
+                    let isChaptersAdjusted = false;
+
+                    // Attach the adjustNodeSizes function to the button
+                    document.getElementById('adjustNodeSizeButton').onclick = adjustNodeSizes;
+                        
+
+                    function generateConnectionsText() {
+                        const chapters = {};
+
+                        // Populate chapters with assignments
+                        nodes.forEach(node => {
+                            if (node.id.startsWith('chapter-')) {
+                                const chapterName = node.label;
+                                chapters[chapterName] = [];
+                                edges.forEach(edge => {
+                                    if (edge.from === node.id) {
+                                        const assignmentNode = nodes.get(edge.to);
+                                        if (assignmentNode) {
+                                            chapters[chapterName].push(assignmentNode.label);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        let text = "For my English final project, I used vis.js to make a cool, interactive way to show my assignments by chapters. \nThe sections were the first categorization, and then chapters linked to them, and then the assignments linked to those. \nI changed their size respectively, making it easy to see how they all fit together. \nI also used vis.js's timeline to show when assignments were due (I do not have the dates for most of the assignments). \nThis made my project fun to look at and work on while being simple to explore.\n";
+                        text += "Chapter Connections:\n";
+                        for (const [chapter, assignments] of Object.entries(chapters)) {
+                            text += `${chapter}\n`;
+                            assignments.forEach(assignment => {
+                                text += `    ├─ ${assignment}\n`;
+                            });
+                        }
+
+                        document.getElementById('connectionsText').textContent = text;
+                    }
+                    generateConnectionsText();
                 })
                 .catch(error => console.error('Error fetching assignments.json: ', error));
         }
