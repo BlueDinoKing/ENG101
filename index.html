@@ -1,19 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Network Graph</title>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    <title>Network Graph and Timeline</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-timeline@7.4.9/standalone/umd/vis-timeline-graph2d.min.js"></script>
     <style type="text/css">
         body {
             background-color: #121212;
             color: #e0e0e0;
             font-family: Arial, sans-serif;
         }
-        #mynetwork {
+        #tabs {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 10px;
+        }
+        .tab {
+            padding: 10px;
+            cursor: pointer;
+            border: 1px solid #333;
+            background-color: #1e1e1e;
+        }
+        .tab.active {
+            background-color: #333;
+        }
+        #mynetwork, #mytimeline {
             width: 100%;
-            height: 90vh;
+            height: 80vh;
             border: 1px solid #333;
             background-color: #1e1e1e;
         }
@@ -33,13 +46,41 @@
     </style>
 </head>
 <body>
-    <label>
-        <input type="checkbox" id="randomLinks" onchange="reloadGraph()"> Generate Random Links
-    </label>
+    <div id="tabs">
+        <div class="tab active" onclick="showTab('network')">Network Graph</div>
+        <div class="tab" onclick="showTab('timeline')">Timeline</div>
+    </div>
     <div id="mynetwork"></div>
+    <div id="mytimeline" style="display: none;"></div>
     <div id="popup"></div>
 
     <script type="text/javascript">
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#mynetwork, #mytimeline').forEach(el => el.style.display = 'none');
+            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`my${tab}`).style.display = 'block';
+        }
+
+        // Function to darken a color
+        function darkenColor(color, amount) {
+            const num = parseInt(color.slice(1), 16);
+            const r = Math.max(0, (num >> 16) - amount);
+            const g = Math.max(0, ((num >> 8) & 0x00FF) - amount);
+            const b = Math.max(0, (num & 0x0000FF) - amount);
+            return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+        }
+
+        // Function to get text color based on background color
+        function getTextColor(backgroundColor) {
+            const num = parseInt(backgroundColor.slice(1), 16);
+            const r = (num >> 16);
+            const g = ((num >> 8) & 0x00FF);
+            const b = (num & 0x0000FF);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness > 155 ? '#000000' : '#e0e0e0';
+        }
+
         function reloadGraph() {
             // Fetch the assignments.json file
             fetch('assignments.json')
@@ -48,35 +89,93 @@
                     // Create nodes and edges from the data
                     const nodes = new vis.DataSet();
                     const edges = new vis.DataSet();
-                    //
-                    // Define chapters
-                    const chapters = [
-                        "Listening",
-                        "Thinking Rhetorically",
-                        "Engaging Respectfully with Others",
-                        "Developing Academic Habits of Mind",
-                        "Writing Processes",
-                        "Reading to Understand, Engage, & Respond",
-                        "Recognizing Facts, Misinformation, and Lies",
-                        "Arguing",
-                        "Analyzing"
-                    ];
-                    const colors = ['#ff5400', '#ff8e00', '#ffd200', '#81e650', '#00d267', '#00c0ff', '#8b48fe', '#ca41fc', '#ff46fb'];
-                    
-                    // Add chapter nodes with fixed positions
-                    chapters.forEach((chapter, index) => {
-                        nodes.add({ 
-                            id: index, 
-                            label: `Chapter ${index + 1}: ${chapter}`,
+                    const items = new vis.DataSet();
+
+                    // Define book structure
+                    const bookStructure = {
+                        sections: [
+                            {
+                                section: "Rhetoric",
+                                chapters: [
+                                    "1: Listening",
+                                    "2: Thinking Rhetorically",
+                                    "3: Engaging Respectfully with Others",
+                                    "4: Developing Academic Habits of Mind"
+                                ],
+                                color: '#0099ff'
+                            },
+                            {
+                                section: "Reading",
+                                chapters: [
+                                    "5: Reading to Understand, Engage, & Respond",
+                                    "6: Recognizing Facts, Misinformation, and Lies"
+                                ],
+                                color: '#e1ff00'
+                            },
+                            {
+                                section: "Writing",
+                                chapters: [
+                                    "7: Writing Processes",
+                                    "8: Arguing",
+                                    "9: Analyzing",
+                                    "12: Summarizing and Responding",
+                                    "13: Writing in Multiple Nodes"
+                                ],
+                                color: '#ff0000'
+                            },
+                            {
+                                section: "Research",
+                                chapters: [
+                                    "14: Starting with Questions, Finding Sources",
+                                    "15: Evaluating Sources, Checking Facts",
+                                    "16: Building an Annotated Bibliography",
+                                    "17: Synthesizing Ideas",
+                                    "18: Quoting, Paraphrasing, Summarizing",
+                                    "19: Giving Credit, Using Sources Ethically",
+                                    "20: MLA Style",
+                                    "21: APA Style"
+                                ],
+                                color: '#120096'
+                            },
+                            {
+                                section: "Language and Style",
+                                chapters: [
+                                    "22: Getting and Keeping Attention",
+                                    "23: Writing Great Sentences"
+                                ],
+                                color: '#02fab8'
+                            },
+                            {
+                                section: "Design",
+                                chapters: [
+                                    "26: Using Visuals"
+                                ],
+                                color: '#fa7a02'
+                            },
+                            {
+                                section: "Media",
+                                chapters: [
+                                    "29: Digital"
+                                ],
+                                color: '#fa02e1'
+                            }
+                        ]
+                    };
+
+                    // Add section nodes
+                    bookStructure.sections.forEach((section, sectionIndex) => {
+                        nodes.add({
+                            id: `section-${sectionIndex}`,
+                            label: section.section,
                             color: {
-                                background: colors[index],
+                                background: section.color,
                                 border: '#333',
                                 highlight: {
-                                    background: colors[index],
+                                    background: section.color,
                                     border: '#fff'
                                 }
                             },
-                            font: { size: 32, color: '#e0e0e0' },
+                            font: { size: 64, color: getTextColor(section.color) },
                             shape: 'box',
                             shadow: {
                                 enabled: true,
@@ -85,22 +184,48 @@
                                 x: 0,
                                 y: 0
                             },
-                            title: `Chapter ${index + 1}: ${chapter}`,
+                            title: section.section,
                             date: 'N/A',
                             notes: 'N/A'
                         });
-                    });
 
-                    // Add links between chapters 1 to 2, 2 to 3, etc.
-                    for (let i = 0; i < chapters.length - 1; i++) {
-                        for (let j = 0; j < 7; j++) {    
-                            edges.add({ 
-                                from: i, 
-                                to: i + 1,
-                                color: { color: colors[i] }
+                        // Add chapter nodes and link to sections
+                        section.chapters.forEach((chapter, chapterIndex) => {
+                            const chapterId = `chapter-${sectionIndex}-${chapterIndex}`;
+                            const chapterColor = section.color;
+                            nodes.add({
+                                id: chapterId,
+                                label: chapter,
+                                color: {
+                                    background: darkenColor(chapterColor, Math.random() * 25),
+                                    border: '#333',
+                                    highlight: {
+                                        background: chapterColor,
+                                        border: '#fff'
+                                    }
+                                },
+                                font: { size: 32, color: getTextColor(section.color) },
+                                shape: 'box',
+                                shadow: {
+                                    enabled: true,
+                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    size: 10,
+                                    x: 0,
+                                    y: 0
+                                },
+                                title: chapter,
+                                date: 'N/A',
+                                notes: 'N/A'
                             });
-                        }
-                    }
+
+                            // Link chapter to section
+                            edges.add({
+                                from: `section-${sectionIndex}`,
+                                to: chapterId,
+                                color: { color: section.color }
+                            });
+                        });
+                    });
 
                     function mixColors(color1, color2, ratio) {
                         // Ensure the ratio is between 0 and 1
@@ -128,87 +253,92 @@
                     }
 
                     // Add assignment nodes and link to chapters
-                    const randomLinks = document.getElementById('randomLinks').checked;
                     data.forEach((assignment, index) => {
-                        if (assignment.Handout) {
-                            return;
-                        }
-                        const assignmentId = chapters.length + index;
+                        const assignmentId = `assignment-${index}`;
                         let assignmentColor = '#ffffff'; // Default color
                         let hasLinks = false;
 
-                        if (randomLinks) {
-                            // Generate random links
-                            const randomChapterCount = Math.floor(Math.random() * 5) + 1;
-                            const selectedChapters = new Set();
-                            while (selectedChapters.size < randomChapterCount) {
-                                selectedChapters.add(Math.floor(Math.random() * chapters.length));
-                            }
-                            selectedChapters.forEach(chapterIndex => {
-                                edges.add({ 
-                                    from: chapterIndex, 
-                                    to: assignmentId,
-                                    color: { color: colors[chapterIndex] }
-                                });
-                                hasLinks = true;
-                            });
-
-                            // Mix colors of selected chapters
-                            const selectedColors = Array.from(selectedChapters).map(index => colors[index]);
-                            if (selectedColors.length > 1) {
-                                assignmentColor = selectedColors.reduce((acc, color) => mixColors(acc, color, 0.5));
-                            } else if (selectedColors.length === 1) {
-                                assignmentColor = selectedColors[0];
-                            }
-                        } else {
-                            // Link assignment to relevant chapters
-                            const linkedChapters = [];
-                            chapters.forEach((chapter, chapterIndex) => {
-                                const chapterKey = chapter.replace(/ /g, '');
-                                if (assignment[chapter] === true) {
-                                    edges.add({ 
-                                        from: chapterIndex, 
+                        // Link assignment to relevant chapters
+                        const linkedChapters = [];
+                        bookStructure.sections.forEach((section, sectionIndex) => {
+                            section.chapters.forEach((chapter, chapterIndex) => {
+                                if (assignment[chapter] === "TRUE") {
+                                    const chapterId = `chapter-${sectionIndex}-${chapterIndex}`;
+                                    edges.add({
+                                        from: chapterId,
                                         to: assignmentId,
-                                        color: { color: colors[chapterIndex] }
+                                        color: { color: section.color }
                                     });
-                                    linkedChapters.push(colors[chapterIndex]);
+                                    linkedChapters.push(section.color);
                                     hasLinks = true;
                                 }
                             });
+                        });
 
-                            // Mix colors of linked 
-                            if (linkedChapters.length > 1) {
-                                assignmentColor = linkedChapters.reduce((acc, color) => mixColors(acc, color, 0.5));
-                            } else if (linkedChapters.length === 1) {
-                                assignmentColor = linkedChapters[0];
-                            }
-
+                        // Mix colors of linked chapters
+                        if (linkedChapters.length > 1) {
+                            assignmentColor = linkedChapters.reduce((acc, color) => mixColors(acc, color, 0.5));
+                        } else if (linkedChapters.length === 1) {
+                            assignmentColor = linkedChapters[0];
                         }
 
-                        nodes.add({ 
-                            id: assignmentId, 
-                            label: assignment.Title, 
-                            color: {
-                                background: assignmentColor,
-                                border: '#333',
-                                highlight: {
+                        if (assignment.Include == "TRUE") {
+
+                            nodes.add({
+                                id: assignmentId,
+                                label: assignment.Title,
+                                color: {
                                     background: assignmentColor,
-                                    border: '#fff'
-                                }
-                            },
-                            font: { color: hasLinks ? '#e0e0e0' : '#000000' }, // Set font color based on link presence
-                            shape: 'box',
-                            shadow: {
-                                enabled: true,
+                                    border: '#333',
+                                    highlight: {
+                                        background: assignmentColor,
+                                        border: '#fff'
+                                    }
+                                },
+                                font: { color: getTextColor(assignmentColor) }, // Set font color based on link presence
+                                shape: 'box',
+                                shadow: {
+                                    enabled: true,
                                 color: assignmentColor,
                                 size: 10,
                                 x: 0,
                                 y: 0
                             },
-                            title: assignment.Title, 
-                            date: assignment['Due Date'], 
-                            notes: assignment.Notes
+                            title: assignment.Title,
+                            date: assignment['Due Date'],
+                            notes: assignment.Notes,
+                            picture: assignment.Picture ? assignment.Picture.replace('ENG101/', '') : null
+                        
                         });
+                        if (!assignment.Picture) {
+                                console.error(`Assignment ${assignment.Title} has no picture.`);
+                            }
+                        
+                    }
+
+                        // Add assignment to timeline
+                        if (assignment['Due Date'] !== '') {
+                            items.add({
+                                id: assignmentId,
+                                content: assignment.Title,
+                                start: assignment['Due Date'],
+                                notes: assignment.Notes,
+                                picture: assignment.Picture ? assignment.Picture.replace('ENG101/', '') : null,
+                                style: `background-color: ${assignmentColor}; color: ${hasLinks ? '#e0e0e0' : '#000000'};`
+                            });
+                        }
+                    });
+
+                    // Remove nodes with no connections
+                    nodes.forEach(node => {
+                        const connectedEdges = edges.get({
+                            filter: edge => edge.from === node.id || edge.to === node.id
+                        });
+                        if (connectedEdges.length === 0) {
+                            nodes.remove(node.id);
+                        } else if (connectedEdges.length === 1 && node.id.startsWith('chapter-')) {
+                            console.error(`Chapter node ${node.label} has only one connection.`);
+                        }
                     });
 
                     // Create a network
@@ -235,7 +365,22 @@
                     };
                     const network = new vis.Network(container, networkData, options);
 
-                    // Add click event listener
+                    // Create a timeline
+                    const timelineContainer = document.getElementById('mytimeline');
+                    const timelineOptions = {
+                        stack: true,
+                        showCurrentTime: true,
+                        min: new Date(2024, 7, 1), // August 1, 2024
+                        max: new Date(2024, 11, 31), // December 31, 2024
+                        zoomMin: 1000 * 60 * 60 * 24, // One day
+                        zoomMax: 1000 * 60 * 60 * 24 * 153, // Duration from August 1 to December 31
+                        horizontalScroll: false,
+                        verticalScroll: false,
+                        orientation: { axis: 'top', item: 'top' }
+                    };
+                    const timeline = new vis.Timeline(timelineContainer, items, timelineOptions);
+
+                    // Add click event listener for network
                     network.on("click", function (params) {
                         if (params.nodes.length > 0) {
                             const nodeId = params.nodes[0];
@@ -252,13 +397,28 @@
                                     popupContent += `<br><strong>Notes:</strong> ${node.notes}`;
                                 }
 
+                                if (node.picture) {
+                    
+                                    const imageContainer = document.createElement('popup');
+                                    imageContainer.style.position = 'fixed';
+                                    imageContainer.style.left = '10px';
+                                    imageContainer.style.top = '10px';
+                                    imageContainer.style.zIndex = '1000';
+                                    imageContainer.innerHTML = `<img src="${node.picture}" alt="${node.title}" style="max-height: 80%; min-width: 35%; max-width: 35%;">`;
+                                    imageContainer.addEventListener('click', function() {
+                                        document.body.removeChild(imageContainer);
+                                        document.getElementById('popup').style.display = 'none';
+                                    });
+                                    document.body.appendChild(imageContainer);
+                                }
+
                                 // Get connected chapters
                                 const connectedChapters = edges.get({
                                     filter: (edge) => edge.to === nodeId
                                 }).map(edge => nodes.get(edge.from).label);
                                 if (connectedChapters.length > 0) {
                                     popupContent += `<br><strong>Connected Chapters:</strong><br>${connectedChapters.join('<br>')}`;
-                                }   
+                                }
 
                                 popup.innerHTML = popupContent;
 
@@ -269,7 +429,54 @@
                                 // Position the popup at the top right of the node
                                 popup.style.display = 'block';
                                 popup.style.left = (canvasPosition.x + 10) + 'px';
-                                popup.style.top = (canvasPosition.y - popup.offsetHeight - 10) + 'px';
+                                popup.style.top = (canvasPosition.y - 20) + 'px';
+                            } else {
+                                document.getElementById('popup').style.display = 'none';
+                            }
+                        } else {
+                            document.getElementById('popup').style.display = 'none';
+                        }
+                    });
+
+                    // Add click event listener for timeline
+                    timeline.on('select', function (properties) {
+                        if (properties.items.length > 0) {
+                            const itemId = properties.items[0];
+                            const item = items.get(itemId);
+
+                            // Check if the item is an assignment item
+                            if (item.start !== undefined) {
+                                const popup = document.getElementById('popup');
+                                let popupContent = `<strong>${item.content}</strong>`;
+                                if (item.start !== undefined) {
+                                    popupContent += `<br>${new Date(item.start).toLocaleDateString()}`;
+                                }
+                                if (item.notes !== 'N/A') {
+                                    popupContent += `<br><strong>Notes:</strong> ${item.notes}`;
+                                }
+
+                                if (item.picture) {
+                                    popupContent += `<br><img src="${item.picture}" alt="${item.content}" style="max-width: 100px; max-height: 100px;">`;
+                                }
+
+                                // Get connected chapters
+                                const connectedChapters = edges.get({
+                                    filter: (edge) => edge.to === itemId
+                                }).map(edge => nodes.get(edge.from).label);
+                                if (connectedChapters.length > 0) {
+                                    popupContent += `<br><strong>Connected Chapters:</strong><br>${connectedChapters.join('<br>')}`;
+                                }
+
+                                popup.innerHTML = popupContent;
+
+                                // Get the position of the item
+                                const itemElement = timeline.itemSet.items[itemId].dom.box;
+                                const rect = itemElement.getBoundingClientRect();
+
+                                // Position the popup at the top right of the item
+                                popup.style.display = 'block';
+                                popup.style.left = (rect.left + window.scrollX) + 'px';
+                                popup.style.top = (rect.top + window.scrollY - popup.offsetHeight) + 'px';
                             } else {
                                 document.getElementById('popup').style.display = 'none';
                             }
@@ -278,7 +485,7 @@
                         }
                     });
                 })
-                .catch(error => console.error('Error fetching assignments.json:', error));
+                .catch(error => console.error('Error fetching assignments.json: ', error));
         }
 
         // Initial load
